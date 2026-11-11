@@ -1,0 +1,15 @@
+import numpy as np
+
+from .meta_sampler import MetaSampler
+
+class UniformSampler(MetaSampler):
+    """Uniform Task Sampler that randomly selects a task class
+    from the pool of tasks.
+    """
+    def _select_training_envs(self, num_envs: int) -> list[str]:
+        """Randomly pick a tasks to train on with equal probability"""
+        classes = list(self._envs_by_class.keys())
+
+        return np.random.choice(
+            classes, size=num_envs, replace=True
+        ).tolist()
