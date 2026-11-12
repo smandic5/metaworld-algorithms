@@ -291,12 +291,23 @@ class LinearFeatureBaseline:
         observations = [[] for _ in range(rollouts.dones.shape[1])]
         rewards = [[] for _ in range(rollouts.dones.shape[1])]
         start_idx = np.zeros(rollouts.dones.shape[1], dtype=np.int32)
-        for i in range(rollouts.dones.shape[0]):
-            for j, done in enumerate(rollouts.dones[i]):
-                if done:
-                    observations[j].append(rollouts.observations[start_idx[j] : i + 1, j])
-                    rewards[j].append(rollouts.rewards[start_idx[j] : i + 1, j])
-                    start_idx[j] = i + 1
+        for i in range(1, rollouts.dones.shape[0]):
+            for j, episode_started in enumerate(rollouts.dones[i]):
+                if episode_started:
+                    observations[j].append(
+                        rollouts.observations[start_idx[j]:i, j]
+                    )
+                    rewards[j].append(
+                        rollouts.rewards[start_idx[j]:i, j]
+                    )
+                    start_idx[j] = i
+        for j in range(rollouts.dones.shape[1]):
+            observations[j].append(
+                rollouts.observations[start_idx[j]:, j]
+            )
+            rewards[j].append(
+                rollouts.rewards[start_idx[j]:, j]
+            )
 
         # NOTE: This will error if the trajectories are not the same length
         observations = np.stack(observations)
