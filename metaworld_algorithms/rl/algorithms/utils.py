@@ -419,7 +419,7 @@ class LinearFeatureBaselineJAX:
 def swap_rollout_axes(rollout: Rollout, axis1: int, axis2: int) -> Rollout:
     return Rollout(
         *map(
-            lambda x: x.swapaxes(axis1, axis2) if x is not None else None,
+            lambda x: x.swapaxes(axis1, axis2) if x is not None and len(x.shape) > 1 else None,
             rollout,
         )  # pyright: ignore[reportArgumentType]
     )
