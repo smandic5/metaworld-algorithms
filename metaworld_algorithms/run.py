@@ -83,6 +83,7 @@ class Run:
                 max_to_keep=self.max_checkpoints_to_keep,
                 create=True,
                 best_fn=lambda x: x[self.best_checkpoint_metric],
+                enable_async_checkpointing=False,
             ),
         )
         if checkpoint_manager.latest_step() is not None:
