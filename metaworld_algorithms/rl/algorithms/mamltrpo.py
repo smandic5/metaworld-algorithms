@@ -422,3 +422,7 @@ class MAMLTRPO(GradientBasedMetaLearningAlgorithm[MAMLTRPOConfig]):
         data = [swap_rollout_axes(rollouts, 0, 1) for rollouts in data]
         self, policy_logs = self.outer_step(data)
         return self, policy_logs
+
+    @override
+    def get_policy(self) -> MetaTrainState:
+        return self.policy

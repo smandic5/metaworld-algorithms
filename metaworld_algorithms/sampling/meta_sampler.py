@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Literal
+import jax
+import numpy as np
 
 import gymnasium as gym
 import metaworld
@@ -14,6 +16,8 @@ from metaworld.wrappers import (
     RNNBasedMetaRLWrapper,
     NormalizeRewardsExponential,
 )
+
+from metaworld_algorithms.rl.algorithms.utils import MetaTrainState, TrainState
 
 
 class MetaSampler(ABC):
@@ -149,3 +153,19 @@ class MetaSampler(ABC):
             ) % len(available_envs)
 
         return self._to_vec_env(selected_envs)
+
+    def extract_ensemble_params(self, params):
+        params = jax.device_get(params)
+        return [
+            jax.tree_util.tree_map(
+                lambda x: np.array(x[i], copy=True),
+                params
+            )
+            for i in range(self.meta_batch_size)
+        ]
+
+    def feedback(
+        self,
+        train_state: TrainState
+    ) -> None:
+        params = self.extract_ensemble_params(train_state.params)

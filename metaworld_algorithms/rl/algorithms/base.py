@@ -40,6 +40,7 @@ from metaworld_algorithms.types import (
     Rollout,
 )
 from metaworld_algorithms.sampling import MetaSampler
+from metaworld_algorithms.rl.algorithms.utils import MetaTrainState, TrainState
 
 AlgorithmConfigType = TypeVar("AlgorithmConfigType", bound=AlgorithmConfig)
 TrainingConfigType = TypeVar("TrainingConfigType", bound=TrainingConfig)
@@ -156,6 +157,9 @@ class GradientBasedMetaLearningAlgorithm(
     @abc.abstractmethod
     def init_ensemble_networks(self) -> Self: ...
 
+    @abc.abstractmethod
+    def get_policy(self) -> MetaTrainState: ...
+
     @override
     def train(
         self,
@@ -254,6 +258,10 @@ class GradientBasedMetaLearningAlgorithm(
                 if _step < config.num_inner_gradient_steps:
                     print(f"- Adaptation step {_step}")
                     self = self.adapt(rollouts)
+
+            # record parameters for task sampler
+            if task_sampler is not None:
+                task_sampler.feedback(self.get_policy().inner_train_state)
 
             mean_episodic_return = np.mean(list(global_episodic_return))
             print("- Mean episodic return: ", mean_episodic_return)
