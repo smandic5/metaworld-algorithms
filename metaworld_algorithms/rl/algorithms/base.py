@@ -261,7 +261,7 @@ class GradientBasedMetaLearningAlgorithm(
 
             # record parameters for task sampler
             if task_sampler is not None:
-                task_sampler.feedback(self.get_policy().inner_train_state)
+                task_sampler.feedback(self.get_policy().inner_train_state, all_rollouts[-1].observations)
 
             mean_episodic_return = np.mean(list(global_episodic_return))
             print("- Mean episodic return: ", mean_episodic_return)

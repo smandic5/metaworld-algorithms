@@ -166,6 +166,7 @@ class MetaSampler(ABC):
 
     def feedback(
         self,
-        train_state: TrainState
+        train_state: TrainState,
+        observations: np.ndarray,
     ) -> None:
         params = self.extract_ensemble_params(train_state.params)
