@@ -116,7 +116,7 @@ class MetaworldConfig(EnvConfig):
             seed=seed,
             use_one_hot=self.use_one_hot,
             terminate_on_success=self.terminate_on_success,
-            vector_strategy="async",
+            vector_strategy="sync",
             max_episode_steps=self.max_episode_steps,
             reward_function_version=self.reward_func_version,
             reward_normalization_method=self.reward_normalization_method,
@@ -138,7 +138,7 @@ class MetaworldConfig(EnvConfig):
         kwargs = dict(
             seed=seed,
             terminate_on_success=True,
-            vector_strategy="async",
+            vector_strategy="sync",
             max_episode_steps=self.max_episode_steps,
             reward_function_version=self.reward_func_version,
             reward_normalization_method=self.reward_normalization_method,
@@ -246,7 +246,7 @@ class MetaworldMetaLearningConfig(MetaworldConfig, MetaLearningEnvConfig):
         kwargs = dict(
             seed=seed,
             terminate_on_success=self.terminate_on_success,
-            vector_strategy="async",
+            vector_strategy="sync",
             max_episode_steps=self.max_episode_steps,
             meta_batch_size=self.meta_batch_size,
             total_tasks_per_cls=self.total_goals_per_task_train,
@@ -267,7 +267,7 @@ class MetaworldMetaLearningConfig(MetaworldConfig, MetaLearningEnvConfig):
         kwargs = dict(
             seed=seed,
             terminate_on_success=True,
-            vector_strategy="async",
+            vector_strategy="sync",
             max_episode_steps=self.max_episode_steps,
             meta_batch_size=self.meta_batch_size,
             total_tasks_per_cls=self.total_goals_per_task_test,
