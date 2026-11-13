@@ -35,6 +35,7 @@ from metaworld_algorithms.rl.algorithms.base import (
     OnPolicyAlgorithm,
 )
 from metaworld_algorithms.types import CheckpointMetadata
+from metaworld_algorithms.sampling import MetaSampler
 
 
 @dataclass
@@ -47,6 +48,7 @@ class Run:
     algorithm: AlgorithmConfig
     training_config: TrainingConfig
 
+    task_sampler: MetaSampler | None = None
     checkpoint: bool = True
     max_checkpoints_to_keep: int = 5
     best_checkpoint_metric: str = "mean_success_rate"
@@ -206,6 +208,7 @@ class Run:
             checkpoint_metadata=checkpoint_metadata,
             buffer_checkpoint=buffer_checkpoint,
             recording=recording,
+            task_sampler=self.task_sampler,
         )
 
         # Cleanup

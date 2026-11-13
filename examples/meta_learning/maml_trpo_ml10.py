@@ -3,6 +3,7 @@ from pathlib import Path
 
 import tyro
 import numpy as np
+import metaworld
 
 from metaworld_algorithms.config.networks import (
     ContinuousActionPolicyConfig,
@@ -15,6 +16,7 @@ from metaworld_algorithms.config.utils import Activation, Initializer, StdType
 from metaworld_algorithms.envs import MetaworldMetaLearningConfig
 from metaworld_algorithms.rl.algorithms import MAMLTRPOConfig
 from metaworld_algorithms.run import Run
+from metaworld_algorithms.sampling import UniformSampler
 
 
 @dataclass(frozen=True)
@@ -69,6 +71,7 @@ def main() -> None:
             total_steps=int(2_000_000 * num_tasks),
             evaluation_frequency=args.evaluation_frequency,
         ),
+        task_sampler=UniformSampler(metaworld.ML10(args.seed), seed=args.seed),
         checkpoint=True,
         resume=args.resume,
     )

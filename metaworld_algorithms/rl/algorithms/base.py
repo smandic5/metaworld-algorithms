@@ -39,6 +39,7 @@ from metaworld_algorithms.types import (
     RNNState,
     Rollout,
 )
+from metaworld_algorithms.sampling import MetaSampler
 
 AlgorithmConfigType = TypeVar("AlgorithmConfigType", bound=AlgorithmConfig)
 TrainingConfigType = TypeVar("TrainingConfigType", bound=TrainingConfig)
@@ -81,6 +82,7 @@ class Algorithm(
         checkpoint_metadata: CheckpointMetadata | None = None,
         buffer_checkpoint: ReplayBufferCheckpoint | None = None,
         recording: RecordingConfig | None = None,
+        task_sampler: MetaSampler | None = None,
     ) -> Self: ...
 
 
@@ -118,6 +120,7 @@ class MetaLearningAlgorithm(
         checkpoint_metadata: CheckpointMetadata | None = None,
         buffer_checkpoint: ReplayBufferCheckpoint | None = None,
         recording: RecordingConfig | None = None,
+        task_sampler: MetaSampler | None = None,
     ) -> Self: ...
 
 
@@ -166,10 +169,12 @@ class GradientBasedMetaLearningAlgorithm(
         checkpoint_metadata: CheckpointMetadata | None = None,
         buffer_checkpoint: ReplayBufferCheckpoint | None = None,
         recording: RecordingConfig | None = None,
+        task_sampler: MetaSampler | None = None,
     ) -> Self:
         global_episodic_return: Deque[float] = deque([], maxlen=20 * self.num_tasks)
         global_episodic_length: Deque[int] = deque([], maxlen=20 * self.num_tasks)
         start_step, episodes_ended = 0, 0
+        default_envs = envs
 
         if checkpoint_metadata is not None:
             start_step = checkpoint_metadata["step"]
@@ -196,7 +201,10 @@ class GradientBasedMetaLearningAlgorithm(
             global_step = _iter * steps_per_iter
             print(f"Iteration {_iter}, Global num of steps {global_step}")
 
-            envs.call("sample_tasks")
+            if task_sampler is not None:
+                envs = task_sampler.sample()
+            else:
+                envs.call("sample_tasks")
             self = self.init_ensemble_networks()
             all_rollouts: list[Rollout] = []
 
@@ -303,7 +311,7 @@ class GradientBasedMetaLearningAlgorithm(
                         global_step,
                         args=get_checkpoint_save_args(
                             self,
-                            envs,
+                            default_envs,
                             global_step,
                             episodes_ended,
                             run_timestamp,
