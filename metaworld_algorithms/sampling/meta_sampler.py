@@ -2,12 +2,18 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
+from typing import Literal
 
 import gymnasium as gym
 import metaworld
 
 from metaworld.sawyer_xyz_env import SawyerXYZEnv
 from metaworld.types import Task
+from metaworld.wrappers import (
+    AutoTerminateOnSuccessWrapper,
+    RNNBasedMetaRLWrapper,
+    NormalizeRewardsExponential,
+)
 
 
 class MetaSampler(ABC):
@@ -20,9 +26,31 @@ class MetaSampler(ABC):
     Tasks within each environment class are selected sequentially,
     wrapping around when the end of the task list is reached.
     """
+    reward_func_version: str = "v2"
+    num_goals: int = 50
+    reward_normalization_method: str | None = None
+    normalize_observations: bool = False
+    render_mode: Literal["rgb_array"] = "rgb_array"
+    camera_name: str | None = "corner"
+    camera_id: int | None = None
+    
+    max_episode_steps: int = 500
+    terminate_on_success: bool = False
+    recurrent_info_in_obs: bool = False
+    
+    use_one_hot: bool = False
+    meta_batch_size: int = 20
 
-    def __init__(self, benchmark: metaworld.Benchmark) -> None:
-        self._envs_by_class: dict[str, list[SawyerXYZEnv]] = (
+    total_goals_per_task_train: int = 50
+    total_goals_per_task_test: int = 40
+
+    evaluation_num_episodes: int = 3
+    evaluation_adaptation_steps: int = 1
+    evaluation_adaptation_episodes: int = 10
+
+    def __init__(self, benchmark: metaworld.Benchmark, seed: int) -> None:
+        self.seed = seed
+        self._envs_by_class: dict[str, list[gym.Env]] = (
             self._create_training_envs(benchmark)
         )
 
@@ -31,14 +59,32 @@ class MetaSampler(ABC):
             class_name: 0 for class_name in self._envs_by_class
         }
 
-    @staticmethod
     def _make_env(
+        self,
         env_cls: type[SawyerXYZEnv],
         task: Task
-    ) -> SawyerXYZEnv:
+    ) -> gym.Env:
         """Create a MetaWorld environment and assign its task."""
-        env = env_cls()
+        # Underlying metaworld environment
+        env = env_cls(reward_function_version=self.reward_func_version)
         env.set_task(task)
+        # wrappers
+        env = gym.wrappers.TimeLimit(env, self.max_episode_steps)
+        env = AutoTerminateOnSuccessWrapper(env)
+        env.toggle_terminate_on_success(self.terminate_on_success)
+        if self.recurrent_info_in_obs:
+            env = RNNBasedMetaRLWrapper(env)
+        if self.reward_normalization_method == "gymnasium":
+            env = gym.wrappers.NormalizeReward(env)
+        elif self.reward_normalization_method == "exponential":
+            env = NormalizeRewardsExponential(env=env, reward_alpha = 0.001)
+        if self.normalize_observations:
+            env = gym.wrappers.NormalizeObservation(env)
+        env = gym.wrappers.RecordEpisodeStatistics(env)
+        # seed
+        env.reset(seed=self.seed)
+        env.action_space.seed(self.seed)
+
         return env
 
     @staticmethod
@@ -49,29 +95,28 @@ class MetaSampler(ABC):
         env_fns: list[Callable[[], gym.Env]] = [
             lambda env=env: env for env in envs
         ]
-        return gym.vector.SyncVectorEnv(env_fns)
+        return gym.vector.SyncVectorEnv(env_fns, autoreset_mode=gym.vector.AutoresetMode.SAME_STEP)
 
-    @classmethod
     def _create_training_envs(
-        cls,
+        self,
         benchmark: metaworld.Benchmark
-    ) -> dict[str, list[SawyerXYZEnv]]:
+    ) -> dict[str, list[gym.Env]]:
         """Create all training environments grouped by environment class."""
-        envs_by_class: dict[str, list[SawyerXYZEnv]] = defaultdict(list)
+        envs_by_class: dict[str, list[gym.Env]] = defaultdict(list)
 
         for task in benchmark.train_tasks:
             env_cls = benchmark.train_classes[task.env_name]
-            env = cls._make_env(env_cls, task)
+            env = self._make_env(env_cls, task)
             envs_by_class[task.env_name].append(env)
 
         return dict(envs_by_class)
 
     @abstractmethod
-    def _select_training_envs(self, num_envs: int) -> list[str]:
+    def _select_training_envs(self) -> list[str]:
         """Select environment classes for the next training batch."""
         raise NotImplementedError
 
-    def sample(self, num_envs: int = 20) -> gym.vector.SyncVectorEnv:
+    def sample(self) -> gym.vector.SyncVectorEnv:
         """Sample a batch of training environments.
 
         Environment classes are selected by `_select_training_envs`.
@@ -79,11 +124,11 @@ class MetaSampler(ABC):
         Task selection wraps around when all tasks of a class have
         been selected.
         """
-        selected_classes = self._select_training_envs(num_envs)
+        selected_classes = self._select_training_envs()
 
-        assert len(selected_classes) == num_envs, (
+        assert len(selected_classes) == self.meta_batch_size, (
             f"_select_training_envs returned {len(selected_classes)} "
-            f"classes, but {num_envs} were requested."
+            f"classes, but {self.meta_batch_size} were requested."
         )
 
         selected_envs = []
